@@ -1,0 +1,37 @@
+FROM ubuntu:16.04
+
+#Base settings
+ENV HOME /root
+
+COPY requirements.txt /root/requirements.txt
+
+#Install ZeroNet
+RUN apt update \
+ && apt install -y python3-pip tor openssl \
+ gcc libffi-dev musl-dev make \
+ pkg-config \
+ && python3 -m pip install --user --upgrade pip
+
+RUN pip3 install -r /root/requirements.txt \
+ && echo "ControlPort 9051" >> /etc/tor/torrc \
+ && echo "CookieAuthentication 1" >> /etc/tor/torrc
+
+RUN python3 -V \
+ && python3 -m pip list \
+ && tor --version \
+ && openssl version
+
+#Add Zeronet source
+COPY . /root
+VOLUME /root/data
+
+#Control if Tor proxy is started
+ENV ENABLE_TOR false
+
+WORKDIR /root
+
+#Set upstart command
+CMD (! ${ENABLE_TOR} || tor&) && python3 zeronet.py --ui_ip 0.0.0.0 --ui_host 127.0.0.1:43110 zn:43110 raspberrypi:43110 --fileserver_port 26552
+
+#Expose ports
+EXPOSE 43110 26552
